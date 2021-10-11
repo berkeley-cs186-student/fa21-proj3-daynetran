@@ -133,15 +133,48 @@ public class SortMergeOperator extends JoinOperator {
             this.nextRecord = null;
             return nextRecord;
         }
-
+        private boolean reachedEndMustReset = false;
         /**
          * Returns the next record that should be yielded from this join,
          * or null if there are no more records to join.
          */
         private Record fetchNextRecord() {
             // TODO(proj3_part1): implement
+            while (leftRecord != null) {
+                if (!marked) {
+                    while (leftRecord != null && compare(leftRecord, rightRecord) < 0) {
+                        if (leftIterator.hasNext()) {
+                            leftRecord = leftIterator.next();
+                        } else {
+                            leftRecord = null;
+                        }
+                    }
+                    while (leftRecord != null && compare(leftRecord, rightRecord) > 0) {
+                        if (rightIterator.hasNext()) {rightRecord = rightIterator.next();} else {return null;}
+                    }
+                    marked = true;
+                    rightIterator.markPrev();
+                }
+                if (leftRecord != null && compare(leftRecord, rightRecord) == 0 && !reachedEndMustReset) {
+                    Record newRecord = leftRecord.concat(rightRecord);
+                    if (rightIterator.hasNext()) {rightRecord = rightIterator.next();} else {reachedEndMustReset = true;}
+                    return newRecord;
+                }
+                else {
+                    rightIterator.reset();
+                    rightRecord = rightIterator.next();
+                    if (leftIterator.hasNext()) {
+                        leftRecord = leftIterator.next();
+                    } else {
+                        leftRecord = null;
+                    }
+                    marked = false;
+                    reachedEndMustReset = false;
+                }
+            }
             return null;
         }
+
 
         @Override
         public void remove() {
