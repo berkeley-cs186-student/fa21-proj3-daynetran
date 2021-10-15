@@ -575,8 +575,28 @@ public class QueryPlan {
      */
     public QueryOperator minCostSingleAccess(String table) {
         QueryOperator minOp = new SequentialScanOperator(this.transaction, table);
-
+        
         // TODO(proj3_part2): implement
+        int lowestCost = minOp.estimateIOCost();
+        List<Integer> possibleIndices = getEligibleIndexColumns(table);
+        int bestIndex = -1;
+        
+        for (Integer index : possibleIndices) {
+            SelectPredicate x = selectPredicates.get(index);
+            QueryOperator indexOp = new IndexScanOperator(
+                this.transaction, this.tableNames.get(0),
+                x.column,
+                x.operator,
+                x.value
+            );
+            int indexCost = indexOp.estimateIOCost();
+            if (lowestCost > indexCost) {
+                lowestCost = indexCost;
+                minOp = indexOp;
+                bestIndex = index;
+            }
+        }
+        minOp = addEligibleSelections(minOp, bestIndex);
         return minOp;
     }
 
@@ -646,6 +666,7 @@ public class QueryPlan {
         //      calculate the cheapest join with the new table (the one you
         //      fetched an operator for from pass1Map) and the previously joined
         //      tables. Then, update the result map if needed.
+        
         return result;
     }
 
