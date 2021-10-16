@@ -316,5 +316,23 @@ public class TestOptimizationJoins {
             assertTrue(finalOperator.toString().contains("\t-> Seq Scan on table4"));
         }
     }
-
+    @Test
+    public void testNoMatchesJoin() {
+        try(Transaction transaction = db.beginTransaction()) {
+            for (int i = 0; i < 10; ++i) {
+                Record r = new Record(false, i, "!", 0.0f);
+                transaction.insert("table1", r);
+            }
+            Record r = new Record(false, 10, "!", 0.0f);
+            transaction.insert("table2", r);
+            transaction.getTransactionContext().getTable("table1").buildStatistics(10);
+            transaction.getTransactionContext().getTable("table2").buildStatistics(10);
+            // add a join and a select to the QueryPlan
+            QueryPlan query = transaction.query("table1");
+            query.join("table2", "table1.int", "table2.int");
+            query.execute();
+            QueryOperator finalOperator = query.getFinalOperator();
+            assertTrue(!finalOperator.iterator().hasNext());
+        }
+    }   
 }

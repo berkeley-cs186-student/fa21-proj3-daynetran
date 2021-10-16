@@ -316,6 +316,25 @@ public class TestNestedLoopJoin {
     }
 
     @Test
+    @Category(HiddenTests.class)
+    public void testEmptyJoinBNLJ() {
+        d.setWorkMem(5); // B=5
+        try(Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(0),
+                    TestUtils.createSourceWithAllTypes(100),
+                    transaction
+            );
+
+            JoinOperator joinOperator = new BNLJOperator(leftSourceOperator, rightSourceOperator, "int", "int",
+                    transaction.getTransactionContext());
+
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertFalse(outputIterator.hasNext());
+        }
+    }
+
+    @Test
     @Category(PublicTests.class)
     public void testSimplePNLJOutputOrder() {
         // Constructs two tables both the schema (BOOL, INT, STRING(1), FLOAT).

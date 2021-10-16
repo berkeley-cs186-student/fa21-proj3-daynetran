@@ -577,14 +577,14 @@ public class QueryPlan {
         QueryOperator minOp = new SequentialScanOperator(this.transaction, table);
         
         // TODO(proj3_part2): implement
-        int lowestCost = minOp.estimateIOCost();
+        int lowestCost = minOp.estimateIOCost(); // sets default lowest cost to that of the Sequential Scan Operator
         List<Integer> possibleIndices = getEligibleIndexColumns(table);
         int bestIndex = -1;
         
         for (Integer index : possibleIndices) {
             SelectPredicate x = selectPredicates.get(index);
             QueryOperator indexOp = new IndexScanOperator(
-                this.transaction, this.tableNames.get(0),
+                this.transaction, table,
                 x.column,
                 x.operator,
                 x.value
@@ -666,7 +666,44 @@ public class QueryPlan {
         //      calculate the cheapest join with the new table (the one you
         //      fetched an operator for from pass1Map) and the previously joined
         //      tables. Then, update the result map if needed.
-        
+        for (Set<String> set : prevMap.keySet()) {
+            for (JoinPredicate join : joinPredicates) {
+                // set up important info
+                String leftTable = join.leftTable;
+                String leftCol = join.leftColumn;
+                String rightTable = join.rightTable;
+                String rightCol = join.rightColumn;
+                boolean rightIsNew = false;
+                QueryOperator fetched = null;
+                
+                // Review the possible cases
+                if (set.contains(leftTable) && !set.contains(rightTable)) {
+                    Set<String> justRight = new HashSet<>(Collections.singletonList(rightTable));
+                    fetched = pass1Map.get(justRight);
+                    rightIsNew = true;
+                } else if (!set.contains(leftTable) && set.contains(rightTable)) {
+                    Set<String> justLeft = new HashSet<>(Collections.singletonList(leftTable));
+                    fetched = pass1Map.get(justLeft);
+                }
+
+                // Wrap-up
+                QueryOperator bestOp = prevMap.get(set);
+                Set<String> newSet = new HashSet<>(set);
+                if (fetched != null) {
+                    // if case 1 or case 2 is valid, we run minCostJoinType
+                    if (rightIsNew) {
+                        // SET join NEW
+                        bestOp = minCostJoinType(bestOp, fetched, leftCol, rightCol);
+                        newSet.add(rightTable);
+                    } else {
+                        // NEW join SET
+                        bestOp = minCostJoinType(fetched, bestOp, leftCol, rightCol);
+                        newSet.add(leftTable);
+                    }
+                    result.put(newSet, bestOp);
+                }
+            }
+        }
         return result;
     }
 
@@ -716,7 +753,38 @@ public class QueryPlan {
         // Set the final operator to the lowest cost operator from the last
         // pass, add group by, project, sort and limit operators, and return an
         // iterator over the final operator.
-        return this.executeNaive(); // TODO(proj3_part2): Replace this!
+
+        if (this.joinPredicates.size() > 0) {
+            Map<Set<String>, QueryOperator> firstPassMap = new HashMap<>();
+            for (String tableName : tableNames) {
+                // builds pass1Map set (see Task 6)
+                Set<String> oneSet = new HashSet<>(); oneSet.add(tableName); // build a set with just one name
+                QueryOperator oneQuery = minCostSingleAccess(tableName); // find the lowest cost QueryOperator that accesses the single table
+                firstPassMap.put(oneSet, oneQuery); // put the Pair<nameSet, QueryOperator> in the pass1Map
+            }
+    
+            // Pass = 2
+            Map<Set<String>, QueryOperator> nextPassMap = minCostJoins(firstPassMap, firstPassMap); // set the previous and next passMaps to the firstPassMap
+            
+            // Pass i > 2
+            int counter = 0; // use a counter to track n passes
+            while (counter < tableNames.size() - 2) {
+                // keep adding until n names in tablenames have been joined (means executing join n-1 times)
+                nextPassMap = minCostJoins(nextPassMap, firstPassMap); // execute minCostJoins testsd
+                counter += 1;
+            }
+            
+            // Wrap-up
+            this.finalOperator = minCostOperator(nextPassMap);
+            this.addGroupBy();
+            this.addProject();
+            this.addSort();
+            this.addLimit();
+            return this.finalOperator.iterator();
+        } else {
+            return executeNaive();
+        }
+
     }
 
     // EXECUTE NAIVE ///////////////////////////////////////////////////////////

@@ -201,7 +201,11 @@ public class SortOperator extends QueryOperator {
         while (runs.size() > 1) {
             runs = mergePass(runs);
         }
-        return runs.get(0);
+        if (runs.size() == 0) {
+            return new Run(transaction, getSource().getSchema());
+        } else {
+            return runs.get(0);
+        }
     }
 
     /**

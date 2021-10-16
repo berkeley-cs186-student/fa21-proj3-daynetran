@@ -219,4 +219,23 @@ public class TestSortMergeJoin {
         }
     }
 
+    @Test
+    @Category(HiddenTests.class)
+    public void testSortMergeJoinEmptyRelations() {
+        d.setWorkMem(5); // B=5
+        try(Transaction transaction = d.beginTransaction()) {
+            setSourceOperators(
+                    TestUtils.createSourceWithAllTypes(0),
+                    TestUtils.createSourceWithAllTypes(0),
+                    transaction
+            );
+
+            JoinOperator joinOperator = new SortMergeOperator(
+                    leftSourceOperator, rightSourceOperator, "int", "int",
+                    transaction.getTransactionContext());
+
+            Iterator<Record> outputIterator = joinOperator.iterator();
+            assertTrue(!outputIterator.hasNext());
+        }
+    }
 }

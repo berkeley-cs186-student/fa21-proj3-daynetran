@@ -3,6 +3,7 @@ package edu.berkeley.cs186.database.query;
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.TestUtils;
 import edu.berkeley.cs186.database.Transaction;
+import edu.berkeley.cs186.database.categories.HiddenTests;
 import edu.berkeley.cs186.database.categories.Proj3Part1Tests;
 import edu.berkeley.cs186.database.categories.Proj3Tests;
 import edu.berkeley.cs186.database.categories.PublicTests;
@@ -263,4 +264,30 @@ public class TestGraceHashJoin {
         }
     }
 
+    @Test
+    @Category(HiddenTests.class)
+    public void testEmptySetGHJ() {
+        try(Transaction transaction = d.beginTransaction()) {
+            List<Record> leftRecords = new ArrayList<>();
+            List<Record> rightRecords = new ArrayList<>();
+            Schema schema = TestUtils.createSchemaWithAllTypes();
+
+            for (int i = 0; i < 10; i++) {
+                Record r = TestUtils.createRecordWithAllTypesWithValue(i);
+                leftRecords.add(r);
+            }
+
+            GHJOperator ghj = new GHJOperator(
+                    new TestSourceOperator(rightRecords, schema),
+                    new TestSourceOperator(leftRecords, schema),
+                    "int", "int",
+                    transaction.getTransactionContext()
+            );
+
+            List<Record> output = new ArrayList<>();
+            for(Record record: ghj) output.add(record);
+
+            assertEquals(0, output.size());
+        }
+    }
 }

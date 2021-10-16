@@ -123,6 +123,9 @@ public class BNLJOperator extends JoinOperator {
          */
         private Record fetchNextRecord() {
             // TODO(proj3_part1): implement
+            if (rightPageIterator == null || leftBlockIterator == null) {
+                return null;
+            }
             while (true) {
                 if (rightPageIterator.hasNext()) {
                     // There are right page records. Move to the next right page record and compare.
